@@ -1,13 +1,31 @@
-import { Coffee } from 'lucide-react'
+import { Coffee, Monitor, Moon, Sun } from 'lucide-react'
 import { motion } from 'framer-motion'
+import clsx from 'clsx'
+import type { ThemePreference } from '../hooks/useTheme'
 
 interface HeaderProps {
   progress: number
   active: number
   completed: number
+  theme: ThemePreference
+  onThemeChange: (theme: ThemePreference) => void
+  showThemeSwitcher: boolean
 }
 
-export function Header({ progress, active, completed }: HeaderProps) {
+const themeOptions: Array<{ value: ThemePreference; label: string; icon: typeof Monitor }> = [
+  { value: 'system', label: 'System', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+]
+
+export function Header({
+  progress,
+  active,
+  completed,
+  theme,
+  onThemeChange,
+  showThemeSwitcher,
+}: HeaderProps) {
   const pct = Math.round(progress * 100)
   return (
     <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -52,6 +70,32 @@ export function Header({ progress, active, completed }: HeaderProps) {
             <span className="text-fg">{completed}</span> sipped
           </span>
         </div>
+        {showThemeSwitcher && (
+          <div className="flex items-center gap-1 rounded-2xl bg-surface p-1">
+            {themeOptions.map((option) => {
+              const Icon = option.icon
+              const selected = theme === option.value
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => onThemeChange(option.value)}
+                  className={clsx(
+                    'flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-medium transition-colors',
+                    selected
+                      ? 'bg-surface-raised text-fg shadow-soft'
+                      : 'text-fg-muted hover:text-fg',
+                  )}
+                  aria-pressed={selected}
+                  aria-label={`Use ${option.label.toLowerCase()} theme`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{option.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
     </header>
   )

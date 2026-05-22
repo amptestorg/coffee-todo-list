@@ -7,9 +7,15 @@ import { FilterBar } from './components/FilterBar'
 import { TodoItem } from './components/TodoItem'
 import { EmptyState } from './components/EmptyState'
 import { useTodos } from './hooks/useTodos'
-import { track } from './lib/analytics'
+import { useTheme } from './hooks/useTheme'
+import type { ResolvedTheme, ThemePreference } from './hooks/useTheme'
+import { getVariant, track } from './lib/analytics'
 
 function App() {
+  const themeVariant = getVariant('theme-mode-toggle', 'on')
+  const themeSwitcherEnabled = themeVariant === 'on'
+  const { theme, resolvedTheme, setTheme } = useTheme()
+
   const {
     todos,
     filtered,
@@ -32,6 +38,46 @@ function App() {
     track('App Loaded', { total_todos: todos.length })
   }, [todos.length])
 
+  useEffect(() => {
+    track('Theme Feature Evaluated', {
+      flag_key: 'theme-mode-toggle',
+      variant: themeVariant,
+      enabled: themeSwitcherEnabled,
+    })
+  }, [themeSwitcherEnabled, themeVariant])
+
+  useEffect(() => {
+    if (!themeSwitcherEnabled && theme !== 'dark') {
+      setTheme('dark')
+    }
+  }, [setTheme, theme, themeSwitcherEnabled])
+
+  useEffect(() => {
+    track('Theme Applied', {
+      preference: theme,
+      resolved: resolvedTheme,
+      source: theme === 'system' ? 'system' : 'user',
+      switcher_enabled: themeSwitcherEnabled,
+    })
+  }, [theme, resolvedTheme, themeSwitcherEnabled])
+
+  function onThemeChange(nextTheme: ThemePreference) {
+    const nextResolved: ResolvedTheme =
+      nextTheme === 'system'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light'
+        : nextTheme
+
+    track('Theme Changed', {
+      from: theme,
+      to: nextTheme,
+      resolved: nextResolved,
+      flag_variant: themeVariant,
+    })
+    setTheme(nextTheme)
+  }
+
   const isEmpty = todos.length === 0
   const allDone =
     !isEmpty && stats.active === 0 && filter !== 'completed' && !query && !activeTag
@@ -40,12 +86,15 @@ function App() {
 
   return (
     <>
-      <AmbientBackground />
+      <AmbientBackground resolvedTheme={resolvedTheme} />
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6 sm:py-16">
         <Header
           progress={stats.progress}
           active={stats.active}
           completed={stats.completed}
+          theme={theme}
+          onThemeChange={onThemeChange}
+          showThemeSwitcher={themeSwitcherEnabled}
         />
 
         <AddTodoBar
