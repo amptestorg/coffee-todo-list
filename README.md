@@ -28,8 +28,7 @@ ships as a static site, and instruments product analytics via Amplitude.
 
 ## Amplitude instrumentation
 
-The Amplitude all-in-one SDK is initialized in `src/lib/analytics.ts` with the
-project's API key. Enabled:
+The Amplitude all-in-one SDK is initialized in `src/lib/analytics.ts`. Enabled:
 
 - **Autocapture** — attribution, file downloads, form interactions, page views,
   sessions, element interactions, frustration interactions, network tracking,
@@ -37,6 +36,16 @@ project's API key. Enabled:
 - **Session Replay plugin** with `sampleRate: 1` (100% of sessions)
 - **Experiment client** (`Experiment.initializeWithAmplitudeAnalytics`) so flag
   exposures flow into the same Amplitude project
+
+### Keys and environment variables
+
+- `VITE_AMPLITUDE_API_KEY` — Amplitude Browser SDK API key (write key).
+- `VITE_AMPLITUDE_EXPERIMENT_DEPLOYMENT_KEY` — Amplitude Experiment deployment
+  key used to evaluate remote flags in the browser.
+
+If `VITE_AMPLITUDE_EXPERIMENT_DEPLOYMENT_KEY` is missing, the app falls back to
+the API key and logs a warning. Feature flags may not evaluate as expected in
+that fallback mode.
 
 Custom events emitted by the app:
 
@@ -82,8 +91,8 @@ vercel       # follow prompts
 vercel --prod
 ```
 
-No environment variables are required — the Amplitude key is embedded as a
-public client-side write key.
+For production/preview flag gating, set both environment variables in your
+deployment target (for example Vercel Project Settings → Environment Variables).
 
 ## Project layout
 
