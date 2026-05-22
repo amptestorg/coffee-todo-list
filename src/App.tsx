@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { AmbientBackground } from './components/AmbientBackground'
 import { Header } from './components/Header'
@@ -7,47 +7,9 @@ import { FilterBar } from './components/FilterBar'
 import { TodoItem } from './components/TodoItem'
 import { EmptyState } from './components/EmptyState'
 import { useTodos } from './hooks/useTodos'
-import { useTheme } from './hooks/useTheme'
-import type { ResolvedTheme, ThemePreference } from './hooks/useTheme'
-import {
-  getVariant,
-  isExperimentReady,
-  onExperimentReady,
-  track,
-} from './lib/analytics'
-
-const THEME_FLAG_KEY = 'theme-mode-toggle'
-const THEME_FLAG_VARIANT_ON = 'on'
+import { track } from './lib/analytics'
 
 function App() {
-  // `null` until Experiment has loaded. Distinguishes "feature off" from
-  // "we don't know yet" — without this, an unloaded client falls through to
-  // an arbitrary default and the flag has no real gating power.
-  const [themeVariant, setThemeVariant] = useState<string | null>(() =>
-    isExperimentReady() ? getVariant(THEME_FLAG_KEY) : null,
-  )
-
-  useEffect(() => {
-    if (themeVariant !== null) return
-    return onExperimentReady(() => {
-      setThemeVariant(getVariant(THEME_FLAG_KEY) ?? 'off')
-    })
-  }, [themeVariant])
-
-  const themeSwitcherEnabled = themeVariant === THEME_FLAG_VARIANT_ON
-  const flagResolved = themeVariant !== null
-
-  // When the switcher is gated off, the resolved theme is forced to dark.
-  // We do this via `useTheme`'s override so the user's stored preference is
-  // preserved — when the flag flips on later, their choice comes back.
-  const themeOverride: ResolvedTheme | null = !flagResolved
-    ? 'dark'
-    : themeSwitcherEnabled
-      ? null
-      : 'dark'
-
-  const { theme, resolvedTheme, setTheme } = useTheme({ override: themeOverride })
-
   const {
     todos,
     filtered,
@@ -70,42 +32,6 @@ function App() {
     track('App Loaded', { total_todos: todos.length })
   }, [todos.length])
 
-  useEffect(() => {
-    if (!flagResolved) return
-    track('Theme Feature Evaluated', {
-      flag_key: THEME_FLAG_KEY,
-      variant: themeVariant,
-      enabled: themeSwitcherEnabled,
-    })
-  }, [flagResolved, themeSwitcherEnabled, themeVariant])
-
-  useEffect(() => {
-    track('Theme Applied', {
-      preference: theme,
-      resolved: resolvedTheme,
-      source: theme === 'system' ? 'system' : 'user',
-      switcher_enabled: themeSwitcherEnabled,
-      forced_by_flag: !themeSwitcherEnabled,
-    })
-  }, [theme, resolvedTheme, themeSwitcherEnabled])
-
-  function onThemeChange(nextTheme: ThemePreference) {
-    const nextResolved: ResolvedTheme =
-      nextTheme === 'system'
-        ? window.matchMedia('(prefers-color-scheme: dark)').matches
-          ? 'dark'
-          : 'light'
-        : nextTheme
-
-    track('Theme Changed', {
-      from: theme,
-      to: nextTheme,
-      resolved: nextResolved,
-      flag_variant: themeVariant,
-    })
-    setTheme(nextTheme)
-  }
-
   const isEmpty = todos.length === 0
   const allDone =
     !isEmpty && stats.active === 0 && filter !== 'completed' && !query && !activeTag
@@ -114,16 +40,9 @@ function App() {
 
   return (
     <>
-      <AmbientBackground resolvedTheme={resolvedTheme} />
+      <AmbientBackground />
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6 sm:py-16">
-        <Header
-          progress={stats.progress}
-          active={stats.active}
-          completed={stats.completed}
-          theme={theme}
-          onThemeChange={onThemeChange}
-          showThemeSwitcher={themeSwitcherEnabled}
-        />
+        <Header progress={stats.progress} active={stats.active} completed={stats.completed} />
 
         <AddTodoBar
           onAdd={({ title, priority, tags }) => {
