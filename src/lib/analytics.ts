@@ -3,7 +3,8 @@ import { sessionReplayPlugin } from '@amplitude/plugin-session-replay-browser'
 import { Experiment } from '@amplitude/experiment-js-client'
 import type { ExperimentClient } from '@amplitude/experiment-js-client'
 
-const API_KEY = '789d9ad0828f3feb9c34e9e6a879abc2'
+const API_KEY = import.meta.env.VITE_AMPLITUDE_API_KEY ?? '789d9ad0828f3feb9c34e9e6a879abc2'
+const EXPERIMENT_DEPLOYMENT_KEY = import.meta.env.VITE_AMPLITUDE_EXPERIMENT_DEPLOYMENT_KEY
 
 let experimentClient: ExperimentClient | null = null
 let experimentReady = false
@@ -24,27 +25,37 @@ export async function initAnalytics() {
   initialized = true
 
   readyPromise = (async () => {
-    amplitude.add(sessionReplayPlugin({ sampleRate: 1 }))
-
-    await amplitude.init(API_KEY, {
-      autocapture: {
-        attribution: true,
-        fileDownloads: true,
-        formInteractions: true,
-        pageViews: true,
-        sessions: true,
-        elementInteractions: true,
-        frustrationInteractions: true,
-        networkTracking: true,
-        webVitals: true,
-        performanceTracking: true,
-        pageUrlEnrichment: true,
-      },
-    }).promise
-
-    experimentClient = Experiment.initializeWithAmplitudeAnalytics(API_KEY)
     try {
+      amplitude.add(sessionReplayPlugin({ sampleRate: 1 }))
+
+      await amplitude.init(API_KEY, {
+        autocapture: {
+          attribution: true,
+          fileDownloads: true,
+          formInteractions: true,
+          pageViews: true,
+          sessions: true,
+          elementInteractions: true,
+          frustrationInteractions: true,
+          networkTracking: true,
+          webVitals: true,
+          performanceTracking: true,
+          pageUrlEnrichment: true,
+        },
+      }).promise
+
+      const experimentKey = EXPERIMENT_DEPLOYMENT_KEY ?? API_KEY
+      if (!EXPERIMENT_DEPLOYMENT_KEY) {
+        console.warn(
+          '[analytics] VITE_AMPLITUDE_EXPERIMENT_DEPLOYMENT_KEY is not set. ' +
+            'Feature flag evaluation may not match Amplitude Experiment targeting.',
+        )
+      }
+
+      experimentClient = Experiment.initializeWithAmplitudeAnalytics(experimentKey)
       await experimentClient.start()
+    } catch (error) {
+      console.warn('[analytics] Failed to initialize Amplitude Experiment client', error)
     } finally {
       markReady()
     }
