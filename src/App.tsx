@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { AmbientBackground } from './components/AmbientBackground'
 import { Header } from './components/Header'
@@ -9,12 +9,44 @@ import { EmptyState } from './components/EmptyState'
 import { useTodos } from './hooks/useTodos'
 import { useTheme } from './hooks/useTheme'
 import type { ResolvedTheme, ThemePreference } from './hooks/useTheme'
-import { getVariant, track } from './lib/analytics'
+import {
+  getVariant,
+  isExperimentReady,
+  onExperimentReady,
+  track,
+} from './lib/analytics'
+
+const THEME_FLAG_KEY = 'theme-mode-toggle'
+const THEME_FLAG_VARIANT_ON = 'on'
 
 function App() {
-  const themeVariant = getVariant('theme-mode-toggle', 'on')
-  const themeSwitcherEnabled = themeVariant === 'on'
-  const { theme, resolvedTheme, setTheme } = useTheme()
+  // `null` until Experiment has loaded. Distinguishes "feature off" from
+  // "we don't know yet" — without this, an unloaded client falls through to
+  // an arbitrary default and the flag has no real gating power.
+  const [themeVariant, setThemeVariant] = useState<string | null>(() =>
+    isExperimentReady() ? getVariant(THEME_FLAG_KEY) : null,
+  )
+
+  useEffect(() => {
+    if (themeVariant !== null) return
+    return onExperimentReady(() => {
+      setThemeVariant(getVariant(THEME_FLAG_KEY) ?? 'off')
+    })
+  }, [themeVariant])
+
+  const themeSwitcherEnabled = themeVariant === THEME_FLAG_VARIANT_ON
+  const flagResolved = themeVariant !== null
+
+  // When the switcher is gated off, the resolved theme is forced to dark.
+  // We do this via `useTheme`'s override so the user's stored preference is
+  // preserved — when the flag flips on later, their choice comes back.
+  const themeOverride: ResolvedTheme | null = !flagResolved
+    ? 'dark'
+    : themeSwitcherEnabled
+      ? null
+      : 'dark'
+
+  const { theme, resolvedTheme, setTheme } = useTheme({ override: themeOverride })
 
   const {
     todos,
@@ -39,18 +71,13 @@ function App() {
   }, [todos.length])
 
   useEffect(() => {
+    if (!flagResolved) return
     track('Theme Feature Evaluated', {
-      flag_key: 'theme-mode-toggle',
+      flag_key: THEME_FLAG_KEY,
       variant: themeVariant,
       enabled: themeSwitcherEnabled,
     })
-  }, [themeSwitcherEnabled, themeVariant])
-
-  useEffect(() => {
-    if (!themeSwitcherEnabled && theme !== 'dark') {
-      setTheme('dark')
-    }
-  }, [setTheme, theme, themeSwitcherEnabled])
+  }, [flagResolved, themeSwitcherEnabled, themeVariant])
 
   useEffect(() => {
     track('Theme Applied', {
@@ -58,6 +85,7 @@ function App() {
       resolved: resolvedTheme,
       source: theme === 'system' ? 'system' : 'user',
       switcher_enabled: themeSwitcherEnabled,
+      forced_by_flag: !themeSwitcherEnabled,
     })
   }, [theme, resolvedTheme, themeSwitcherEnabled])
 

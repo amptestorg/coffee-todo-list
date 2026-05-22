@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 export type ThemePreference = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
@@ -46,20 +46,33 @@ export function initTheme() {
   applyThemeToDocument(resolvedTheme)
 }
 
-export function useTheme(initialTheme: ThemePreference = 'system') {
-  const [theme, setTheme] = useState<ThemePreference>(() => {
-    if (typeof window === 'undefined') return initialTheme
+interface UseThemeOptions {
+  /**
+   * When set, the resolved theme is forced to this value regardless of the
+   * user's stored preference. Used to gate the feature behind a flag without
+   * destroying the preference. Pass `null` to apply the user's preference.
+   */
+  override?: ResolvedTheme | null
+}
+
+export function useTheme(options: UseThemeOptions = {}) {
+  const { override = null } = options
+
+  const [theme, setThemeState] = useState<ThemePreference>(() => {
+    if (typeof window === 'undefined') return 'system'
     return getStoredTheme()
   })
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => {
-    if (typeof window === 'undefined') return initialTheme === 'dark' ? 'dark' : 'light'
+    if (typeof window === 'undefined') return 'dark'
     return getSystemTheme()
   })
 
-  const resolvedTheme = useMemo<ResolvedTheme>(() => {
+  const userResolvedTheme = useMemo<ResolvedTheme>(() => {
     if (theme === 'system') return systemTheme
     return theme
   }, [theme, systemTheme])
+
+  const resolvedTheme: ResolvedTheme = override ?? userResolvedTheme
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -80,21 +93,25 @@ export function useTheme(initialTheme: ThemePreference = 'system') {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, theme)
-    } catch {
-      // no-op
-    }
-  }, [theme])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
     applyThemeToDocument(resolvedTheme)
   }, [resolvedTheme])
 
+  const setTheme = useCallback((next: ThemePreference) => {
+    setThemeState(next)
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, next)
+    } catch {
+      // no-op
+    }
+  }, [])
+
   return {
+    /** User's stored preference. Untouched by `override`. */
     theme,
+    /** What's actually applied to the DOM (may be flag-overridden). */
     resolvedTheme,
+    /** What would be applied if the override weren't in effect. */
+    userResolvedTheme,
     setTheme,
   }
 }
