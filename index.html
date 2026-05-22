@@ -6,7 +6,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Coffee — Tasks</title>
     <meta name="description" content="A warm, cozy space for your todos. Brewed with care." />
-    <meta name="theme-color" content="#1a0f08" />
+    <meta name="theme-color" content="#150b06" />
+    <script>
+      ;(() => {
+        const STORAGE_KEY = 'coffee:theme:v1'
+        const darkColor = '#150b06'
+        const lightColor = '#FBF6EE'
+        const root = document.documentElement
+        const themeMeta = document.querySelector('meta[name="theme-color"]')
+
+        let theme = 'system'
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY)
+          if (stored === 'light' || stored === 'dark' || stored === 'system') {
+            theme = stored
+          }
+        } catch {
+          // ignore storage access errors
+        }
+
+        const systemDark =
+          typeof window.matchMedia === 'function'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            : true
+        const resolved = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme
+        root.setAttribute('data-theme', resolved)
+        root.style.colorScheme = resolved
+
+        if (themeMeta) {
+          themeMeta.setAttribute('content', resolved === 'dark' ? darkColor : lightColor)
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

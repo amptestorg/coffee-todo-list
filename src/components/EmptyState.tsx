@@ -30,7 +30,7 @@ export function EmptyState({ variant }: EmptyStateProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border bg-surface/40 px-6 py-12 text-center"
+      className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border bg-surface px-6 py-12 text-center"
     >
       <div className="grid h-12 w-12 place-items-center rounded-2xl bg-surface">
         <Icon className="h-6 w-6 text-fg-muted" />
